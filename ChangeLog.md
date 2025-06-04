@@ -1,0 +1,1 @@
+2.0.6: Supported in commit 18a4e9ec453243d8a8937a63796e157b5e6878f7
