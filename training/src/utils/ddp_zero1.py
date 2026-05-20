@@ -34,7 +34,6 @@ def get_zero_optimizer_state_dict_local(optimizer, global_rank):
     # Update the global optimizer state with local state information,
     # factoring in the translation from local to global indexing
     rank = global_rank
-    # TODO: recursive copy to device
     local_param_groups = local_state_dict["param_groups"]
     global_param_groups = optimizer._partition_parameters()[rank]
     assert len(local_param_groups) == len(global_param_groups), \

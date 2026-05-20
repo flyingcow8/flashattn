@@ -47,21 +47,17 @@
   #endif
 #endif
 
-#if defined(__MACA__) || defined(__MACACC_RTC__)
-  // __cvta_generic_to_shared added in CUDA 11+
-  // #if __CUDACC_VER_MAJOR__ >= 11
+#if defined(__MXCC__) || defined(__MACACC_RTC__)
   #if 1
-    #define CUTE_NVCC_SUPPORTS_CVTA_GENERIC_TO_SHARED 1
+    #define CUTE_MACA_SUPPORTS_CVTA_GENERIC_TO_SHARED 1
   #endif
 
-  // __nvvm_get_smem_pointer added in CUDA 10.2
-  // #if __CUDACC_VER_MAJOR__ == 10 && __CUDACC_VER_MINOR__ >= 2
   #if 1
-    #define CUTE_NVCC_SUPPORTS_NVVM_GET_SMEM_POINTER 1
+    #define CUTE_MACA_SUPPORTS_NVVM_GET_SMEM_POINTER 1
   #endif
 #endif
 
-#if CUTE_NVCC_SUPPORTS_CVTA_GENERIC_TO_SHARED || CUTE_CLANG_SUPPORTS_CVTA_GENERIC_TO_SHARED
+#if CUTE_MACA_SUPPORTS_CVTA_GENERIC_TO_SHARED || CUTE_CLANG_SUPPORTS_CVTA_GENERIC_TO_SHARED
   #define CUTE_CVTA_GENERIC_TO_SHARED_SUPPORTED 1
 #endif
 
@@ -69,7 +65,7 @@
   #define CUTE_CVTA_GENERIC_TO_SHARED_ACTIVATED 1
 #endif
 
-#if CUTE_NVCC_SUPPORTS_NVVM_GET_SMEM_POINTER || CUTE_CLANG_SUPPORTS_NVVM_GET_SMEM_POINTER
+#if CUTE_MACA_SUPPORTS_NVVM_GET_SMEM_POINTER || CUTE_CLANG_SUPPORTS_NVVM_GET_SMEM_POINTER
   #define CUTE_NVVM_GET_SMEM_POINTER_SUPPORTED 1
 #endif
 
@@ -79,7 +75,7 @@
 
 // Clang 14+ provides a declaration of __nvvm_get_smem_pointer, so we only need
 // to provide one for NVCC
-#if CUTE_NVCC_SUPPORTS_NVVM_GET_SMEM_POINTER
+#if CUTE_MACA_SUPPORTS_NVVM_GET_SMEM_POINTER
   extern "C" {
   // This NVVM intrinsic is subject to change in future versions of CUDA.
   // Clients should not call it directly.

@@ -7030,8 +7030,8 @@ public:
 };
 
 /// This tile iterator is specialized data type with half_t for MmaTensorOpMultiplicandTileIterator
-/// And it now just tested with InstructionShape_=<16, 8, 16> in warp_level(xylei,06/12/2022)
-//  and <16, 8, 8> in conv/device(ychen1,22/03/2023).
+/// And it now just tested with InstructionShape_=<16, 8, 16> in warp_level
+//  and <16, 8, 8> in conv/device
 /// Other InstructionShape_ maybe cannot work correctly. And so for threadblock and device-level.
 ///
 template <
@@ -7442,8 +7442,8 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////
 /// This tile iterator is specialized data type with half_t for MmaTensorOpMultiplicandTileIterator
-/// And it now just tested with InstructionShape_=<16, 8, 16> in warp_level(xylei,06/12/2022)
-//  and <16, 8, 8> in conv/device(ychen1,24/03/2023).
+/// And it now just tested with InstructionShape_=<16, 8, 16> in warp_level
+//  and <16, 8, 8> in conv/device
 /// Other InstructionShape_ maybe cannot work correctly. And so for threadblock and device-level.
 ///
 template <
@@ -7914,6 +7914,7 @@ class MmaTensorOpMultiplicandTileIterator<
 /// This tile iterator is specialized data type with float and InstructionShape_=<16,8,16> for MmaTensorOpMultiplicandTileIterator
 /// And it now just tested with InstructionShape_=<16, 8, 16> in warp_level.
 /// Threadblock-level and device-level maybe cannot work correctly.
+/// Date: 06/12/2022
 ///
 template <
     /// Size of the matrix to load (concept: MatrixShape)

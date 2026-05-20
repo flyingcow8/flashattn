@@ -462,7 +462,6 @@ std::vector<at::Tensor> dropout_add_ln_bwd(const at::Tensor &dz,     // BxSxhidd
     params.is_rms_norm = is_rms_norm;
 
     if( launch_params.barrier_size > 0 ) {
-        // TODO Any way to avoid this?
         barrier = torch::zeros(launch_params.barrier_size, opts.dtype(torch::kInt32));
         workspace = torch::empty(launch_params.workspace_bytes, opts.dtype(torch::kChar));
         params.workspace = workspace.data_ptr();
@@ -812,7 +811,6 @@ std::vector<at::Tensor> dropout_add_ln_parallel_residual_bwd(
     params.is_rms_norm = is_rms_norm;
 
     if( launch_params.barrier_size > 0 ) {
-        // TODO Any way to avoid this?
         barrier = torch::zeros(launch_params.barrier_size, opts.dtype(torch::kInt32));
         workspace = torch::empty(launch_params.workspace_bytes, opts.dtype(torch::kChar));
         params.workspace = workspace.data_ptr();

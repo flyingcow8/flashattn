@@ -885,7 +885,6 @@ __global__ void masked_multihead_attention_kernel(Multihead_attention_params<T, 
     char* logits_smem_ = smem_;
 #ifndef MMHA_USE_FP32_ACUM_FOR_LOGITS
     if (sizeof(T) != 4) {
-        // TODO - change to tlength
         const int max_timesteps = min(params.timestep, params.memory_max_len);
         logits_smem_ +=
             (DO_CROSS_ATTENTION) ? div_up(params.memory_max_len + 1, 4) * 16 : div_up(max_timesteps + 1, 4) * 16;
@@ -1095,7 +1094,7 @@ __global__ void masked_multihead_attention_kernel(Multihead_attention_params<T, 
         const int half_rotary_dim = params.rotary_embedding_dim / 2;
         const int half_idx        = (tidx * QK_VEC_SIZE) / half_rotary_dim;
         const int intra_half_idx  = (tidx * QK_VEC_SIZE) % half_rotary_dim;
-        const int smem_pitch      = half_rotary_dim;  // TODO: adjust for bank conflicts
+        const int smem_pitch      = half_rotary_dim;
 
         assert(half_rotary_dim % QK_VEC_SIZE == 0);
 
@@ -1603,7 +1602,6 @@ __global__ void masked_multihead_attention_kernel(Multihead_attention_params<T, 
             convert_from_float(*reinterpret_cast<V_vec*>(&params.out[bhi * Dh + vi]), out);
         }
 #else
-        // TODO: support int8_mode?
         *reinterpret_cast<V_vec*>(&params.out[bhi * Dh + vi]) = out;
 #endif
     }

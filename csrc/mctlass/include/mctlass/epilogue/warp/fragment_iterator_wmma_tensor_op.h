@@ -64,7 +64,7 @@ template <
   typename WarpShape,         ///< shape of warp-level GEMM (concept: MatrixShape)
   typename OperatorShape,     ///< matrix multiply operation shape (concept: gemm::GemmShape)
   typename OperatorElementC,  ///< matrix multiply operation data type (concept: data type)
-  typename OperatorFragmentC, ///< matrix multiply operation fragment (concept: mxmaca::maca::fragment)
+  typename OperatorFragmentC, ///< matrix multiply operation fragment
   typename Layout             ///< target shared memory layout
 >
 class FragmentIteratorWmmaTensorOp;
@@ -76,7 +76,7 @@ template <
   typename WarpShape_,         ///< shape of the warp-level GEMM tile
   typename OperatorShape_,     ///< matrix multiply operation shape (concept: gemm::GemmShape)
   typename OperatorElementC_,  ///< matrix multiply operation data type (concept: data type)
-  typename OperatorFragmentC_  ///< matrix multiply operation fragment (concept: mxmaca::maca::fragment)
+  typename OperatorFragmentC_  ///< matrix multiply operation fragment
 >
 class FragmentIteratorWmmaTensorOp<WarpShape_, OperatorShape_, OperatorElementC_, OperatorFragmentC_, layout::RowMajor> {
 public:

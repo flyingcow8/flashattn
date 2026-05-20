@@ -63,7 +63,6 @@ def remap_state_dict_hf_bigcode(state_dict, config: PretrainedConfig):
 
     state_dict = OrderedDict((key_mapping_mlp(k), v) for k, v in state_dict.items())
 
-    # TODO: add support for multi-head attention
     assert config.multi_query, "Only multi-query attention is supported"
 
     # Attention

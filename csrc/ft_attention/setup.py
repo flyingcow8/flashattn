@@ -125,7 +125,7 @@ ext_modules.append(
             "cxx": ["-O3", "-DENABLE_BF16"] + generator_flag,
             "nvcc": append_nvcc_threads(
                 [
-                    "-DENABLE_BF16",  # TODO
+                    "-DENABLE_BF16",
                     "-O3",
                     "-U__CUDA_NO_HALF_OPERATORS__",
                     "-U__CUDA_NO_HALF_CONVERSIONS__",

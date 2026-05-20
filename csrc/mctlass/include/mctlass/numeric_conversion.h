@@ -466,7 +466,16 @@ struct NumericConverter<bfloat16_t, float, FloatRoundStyle::round_to_nearest> {
 
   MCTLASS_HOST_DEVICE
   static result_type convert(source_type const & s) {
+    // Note: __builtin_mxc_cvt_f32tobf16_fast is slower in xcore1000 now
+    //       use __builtin_mxc_cvt_f32tobf16_fast in xcore1000 after complier fix this
+    #if defined(__MACA_ARCH__) && (__MACA_ARCH__ == 1500 || __MACA_ARCH__ == 1600)
+    bfloat16_t result;
+    unsigned short* temp_result = reinterpret_cast<unsigned short*>(&result);
+    *temp_result = __builtin_mxc_cvt_f32tobf16_fast(s);
+    return result;
+    #else
     return static_cast<bfloat16_t>(s);
+    #endif
   }
 
   MCTLASS_HOST_DEVICE
@@ -865,9 +874,19 @@ struct NumericArrayConverter<half_t, float, 2, FloatRoundStyle::round_to_nearest
       // float22half2_rn not fast now.
       reinterpret_cast<__half2 &>(result) = __float22half2_rn(reinterpret_cast<float2 const &>(source));
     #else
+      //NumericConverter<half_t, float, round_style> convert_;
+      //result[0] = convert_(source[0]);
+      //result[1] = convert_(source[1]);
+      /******
+       * reinterpret_cast array<half,2> to half2 can reduce MTE inst after maca-20240514-965
+       ******/
       NumericConverter<half_t, float, round_style> convert_;
-      result[0] = convert_(source[0]);
-      result[1] = convert_(source[1]);
+      auto res = reinterpret_cast<__half2 *>(&result);
+      res->x = convert_(source[0]);
+      res->y = convert_(source[1]);
+
+      // typedef __NATIVE_VECTOR__(2, uint16_t) v2i16;
+      // *(reinterpret_cast<v2i16 *>(&result)) = {convert_(source[0]).storage, convert_(source[1]).storage};
     #endif
 
     return result;
@@ -1014,8 +1033,14 @@ struct NumericArrayConverter<bfloat16_t, float, 2, FloatRoundStyle::round_to_nea
     // return reinterpret_cast<result_type const &>(d);
 
     result_type result;
-    result[0] = static_cast<bfloat16_t>(source[0]);
-    result[1] = static_cast<bfloat16_t>(source[1]);
+#if defined(__FAST_BF16_CVT__)
+    typedef __NATIVE_VECTOR__(2, uint16_t) v2i16;
+    *(reinterpret_cast<v2i16 *>(&result)) = {(*(v2i16 *)&source[0]).s1, (*(v2i16 *)&source[1]).s1};
+#else
+    NumericConverter<bfloat16_t, float, round_style> convert_;
+    result[0] = convert_(source[0]);
+    result[1] = convert_(source[1]);
+#endif
     return result;
 
   }
@@ -1057,6 +1082,32 @@ struct NumericArrayConverter<bfloat16_t, float, N, Round> {
 
     if (N % 2) {
       result[N - 1] = convert_element_(source[N - 1]);
+    }
+    return result;
+  }
+
+  MCTLASS_HOST_DEVICE
+  result_type operator()(source_type const &s) const {
+    return convert(s);
+  }
+};
+
+/// Partial specialization for Array<half_t, N> <= Array<int8_t, N>
+template <int N>
+struct NumericArrayConverter<half_t, int8_t, N> {
+  using result_type = Array<half_t, N>;
+  using source_type = Array<signed char, N>;
+
+  MCTLASS_HOST_DEVICE
+  static result_type convert(source_type const & source) {
+
+    result_type result;
+    half_t *result_ptr = reinterpret_cast<half_t *>(&result);
+    const int8_t *source_ptr = reinterpret_cast<const int8_t *>(&source);
+
+    MCTLASS_PRAGMA_UNROLL
+    for (int i = 0; i < N; ++i) {
+      result_ptr[i] = __half(source_ptr[i]);
     }
     return result;
   }

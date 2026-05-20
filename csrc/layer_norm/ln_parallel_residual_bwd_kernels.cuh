@@ -89,9 +89,6 @@ void ln_parallel_residual_bwd_kernel(layer_norm::BwdParams params) {
             idx += Ktraits::VEC_COLS_PER_LDG;
         }
     }
-    // TODO if ROWS_PER_CTA does not divide rows, we might get divergence in the
-    // last blocks with syncthreads!
-    // grid stride over rows
     #pragma unroll 1
     for( int row = r; row < params.rows; row += params.ctas_per_col * ROWS_PER_CTA ) {
         const compute_t mu_r = static_cast<const compute_t *>(params.mu)[row];

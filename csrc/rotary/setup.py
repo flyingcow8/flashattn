@@ -116,7 +116,7 @@ ext_modules.append(
             'rotary.cpp',
             'rotary_cuda.cu',
         ],
-        extra_compile_args={'cxx': ['-g', '-march=native', '-funroll-loops'],
+        extra_compile_args={'cxx': ['-g', '-funroll-loops'],
                             'nvcc': append_nvcc_threads([
                                 '-O3', '--use_fast_math', '--expt-extended-lambda'
                             ] + cc_flag)

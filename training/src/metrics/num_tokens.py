@@ -9,10 +9,6 @@ from torchmetrics import Metric
 class NumTokens(Metric):
     """Keep track of how many tokens we've seen.
     """
-    # TODO: how do we prevent the reset between the epochs? The reset happens on the 1st batch
-    # of the next epoch.
-    # Right now the hack is that we override reset(), which would mess up the forward method.
-    # We then override forward to do the right thing.
 
     is_differentiable = False
     higher_is_better = False

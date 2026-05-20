@@ -81,11 +81,6 @@ class Block(nn.Module):
                 self.dropout1, nn.Dropout
             )
 
-        # TD [2023-01-07]: TODO: During training, if sequence_parallel is False and dropout != 0.0,
-        # then the input to each worker in the tensor parallel group will be different.
-        # This would produce wrong outputs? Somehow we'd need to sync the RNG state across workers.
-        # For now this is not an issue because we always use sequence_parallel=True during training
-        # and only use sequence_parallel=False during inference.
 
         # Mark the norm parameters as "sequence_parallel" so that we run all-reduce on their grads.
         if sequence_parallel:
@@ -308,11 +303,6 @@ class ParallelBlock(nn.Module):
                 self.dropout1, nn.Dropout
             )
 
-        # TD [2023-01-07]: TODO: During training, if sequence_parallel is False and dropout != 0.0,
-        # then the input to each worker in the tensor parallel group will be different.
-        # This would produce wrong outputs? Somehow we'd need to sync the RNG state across workers.
-        # For now this is not an issue because we always use sequence_parallel=True during training
-        # and only use sequence_parallel=False during inference.
 
         # Mark the norm parameters as "sequence_parallel" so that we run all-reduce on their grads.
         if sequence_parallel:
@@ -346,8 +336,6 @@ class ParallelBlock(nn.Module):
             hidden_states2: the output of the previous MLP layer (if None, will use hidden_states1).
             residual.
         """
-        # TODO: Ideally we should only do the allgather / allreduce once for
-        # the Linear to MLP & Attention
         if not self.fused_dropout_add_ln:
             dropped1 = self.dropout1(hidden_states1)
             # For the very 1st block, we only want 1 dropout, not two different dropouts

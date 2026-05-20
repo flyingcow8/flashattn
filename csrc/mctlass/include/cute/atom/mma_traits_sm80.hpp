@@ -138,6 +138,87 @@ struct MMA_Traits<MACA_16x16x16_F32F16F16F32>
 
 };
 
+template <>
+struct MMA_Traits<MACA_16x16x32_F32F16F16F32>
+{
+  using ElementDVal = float;
+  using ElementAVal = half_t;
+  using ElementBVal = half_t;
+  using ElementCVal = float;
+
+  using Shape_MNK = Shape<_16, _16, _32>;
+  using ThrID = Layout<_64>;
+  using ALayout = Layout<Shape<Shape<_16, _4>, _8>,
+                         Stride<Stride<_1, _128>, _16>>;
+  using BLayout = Layout<Shape<Shape<_16, _4>, _8>,
+                         Stride<Stride<_1, _128>, _16>>;
+  using CLayout = Layout<Shape<Shape<_16, _4>, _4>,
+                         Stride<Stride<_1, _64>, _16>>;
+
+};
+
+// use for lds4x4 + perm4x4
+template <>
+struct MMA_Traits<MACA_16x64x16_F32F16F16F32>
+{
+  using ElementDVal = float;
+  using ElementAVal = half_t;
+  using ElementBVal = half_t;
+  using ElementCVal = float;
+
+  using Shape_MNK = Shape<_16, _64, _16>;
+  using ThrID = Layout<_64>;
+  using ALayout = Layout<Shape<Shape<_16, _4>, _4>,
+                         Stride<Stride<_1, _64>, _16>>;
+  using BLayout = Layout<Shape<Shape<_16, _4>, Shape<_4, _4>>,
+                         Stride<Stride<_4, _256>, Stride<_1, _64>>>;
+  using CLayout = Layout<Shape<Shape<_16, _4>, _16>,
+                         Stride<Stride<_1, _256>, _16>>;
+
+};
+
+///////////////////////////////////////////////////////////////////////////////
+//////////////////////// int32 = int8 * int8 + int32 //////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+
+template <>
+struct MMA_Traits<MACA_16x16x16_I32I8I8I32>
+{
+  using ElementDVal = int32_t;
+  using ElementAVal = int8_t;
+  using ElementBVal = int8_t;
+  using ElementCVal = int32_t;
+
+  using Shape_MNK = Shape<_16, _16, _16>;
+  using ThrID = Layout<_64>;
+  using ALayout = Layout<Shape<Shape<_16, _4>, _4>,
+                         Stride<Stride<_1, _64>, _16>>;
+  using BLayout = Layout<Shape<Shape<_16, _4>, _4>,
+                         Stride<Stride<_1, _64>, _16>>;
+  using CLayout = Layout<Shape<Shape<_16, _4>, _4>,
+                         Stride<Stride<_1, _64>, _16>>;
+
+};
+
+template <>
+struct MMA_Traits<MACA_16x16x32_I32I8I8I32>
+{
+  using ElementDVal = int32_t;
+  using ElementAVal = int8_t;
+  using ElementBVal = int8_t;
+  using ElementCVal = int32_t;
+
+  using Shape_MNK = Shape<_16, _16, _32>;
+  using ThrID = Layout<_64>;
+  using ALayout = Layout<Shape<Shape<_16, _4>, Shape<_8>>,
+                         Stride<Stride<_1, _128>, Stride<_16>>>;
+  using BLayout = Layout<Shape<Shape<_16, _4>, Shape<_8>>,
+                         Stride<Stride<_1, _128>, Stride<_16>>>;
+  using CLayout = Layout<Shape<Shape<_16, _4>, _4>,
+                         Stride<Stride<_1, _64>, _16>>;
+
+};
+
 ///////////////////////////////////////////////////////////////////////////////
 //////////////////////// fp32 = bf16 * bf16 + fp32 ////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -178,6 +259,45 @@ struct MMA_Traits<MACA_16x16x16_F32BF16BF16F32>
                          Stride<Stride<_1, _64>, _16>>;
   using CLayout = Layout<Shape<Shape<_16, _4>, _4>,
                          Stride<Stride<_1, _64>, _16>>;
+
+};
+
+template <>
+struct MMA_Traits<MACA_16x16x32_F32BF16BF16F32>
+{
+  using ElementDVal = float;
+  using ElementAVal = bfloat16_t;
+  using ElementBVal = bfloat16_t;
+  using ElementCVal = float;
+
+  using Shape_MNK = Shape<_16, _16, _32>;
+  using ThrID = Layout<_64>;
+  using ALayout = Layout<Shape<Shape<_16, _4>, _8>,
+                         Stride<Stride<_1, _128>, _16>>;
+  using BLayout = Layout<Shape<Shape<_16, _4>, _8>,
+                         Stride<Stride<_1, _128>, _16>>;
+  using CLayout = Layout<Shape<Shape<_16, _4>, _4>,
+                         Stride<Stride<_1, _64>, _16>>;
+
+};
+
+// use for lds4x4 + perm4x4
+template <>
+struct MMA_Traits<MACA_16x64x16_F32BF16BF16F32>
+{
+  using ElementDVal = float;
+  using ElementAVal = bfloat16_t;
+  using ElementBVal = bfloat16_t;
+  using ElementCVal = float;
+
+  using Shape_MNK = Shape<_16, _64, _16>;
+  using ThrID = Layout<_64>;
+  using ALayout = Layout<Shape<Shape<_16, _4>, _4>,
+                         Stride<Stride<_1, _64>, _16>>;
+  using BLayout = Layout<Shape<Shape<_16, _4>, Shape<_4, _4>>,
+                         Stride<Stride<_4, _256>, Stride<_1, _64>>>;
+  using CLayout = Layout<Shape<Shape<_16, _4>, _16>,
+                         Stride<Stride<_1, _256>, _16>>;
 
 };
 

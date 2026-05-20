@@ -300,7 +300,7 @@ collaboration.
 ### 2.3: Local (i.e., sliding window) attention
 
 Implement sliding window attention (i.e., local attention). Thanks to [Mistral
-AI](https://mistral.ai/) and in particular Timothée Lacroix for this
+AI](https:
 contribution. Sliding window was used in the [Mistral 7B](https://mistral.ai/news/announcing-mistral-7b/) model.
 
 ### 2.4: ALiBi (attention with linear bias), deterministic backward pass.

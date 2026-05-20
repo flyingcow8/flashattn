@@ -10,12 +10,68 @@ if( NOT DEFINED CMAKE_CONFIGURATION_TYPES AND NOT DEFINED CMAKE_BUILD_TYPE )
     "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel." )
 endif()
 
+if( NOT DEFINED MACA_PATH )
+    message(FATAL_ERROR "MACA_PATH is not defined.")
+endif()
+
+# Get environment variable FLASHATTN_BUILD_PROJECTS
+set(ENV_FLASHATTN_BUILD_PROJECT $ENV{FLASHATTN_BUILD_PROJECTS})
+
+# Clear cached variables for fresh start
+unset(PROJECT_LIST CACHE)
+unset(TARGET_ARCH_LIST CACHE)
+
+if(DEFINED ENV{FLASHATTN_BUILD_PROJECTS})
+    set(PROJECT_LIST ${ENV_FLASHATTN_BUILD_PROJECT} CACHE STRING "Value from environment variable FLASHATTN_BUILD_PROJECTS")
+else()
+    # Enable multi-architecture compilation by default
+    set(PROJECT_LIST "C500:C600")
+endif()
+
+if(DEFINED PROJECT_LIST)
+    string(REGEX REPLACE "([^:]+):" "\\1;" BUILT_PROJECT_LIST "${PROJECT_LIST}")
+    string(REPLACE "\"" "" TARGET_ARCH_LIST "${BUILT_PROJECT_LIST}")
+    list(LENGTH TARGET_ARCH_LIST TARGET_ARCH_LIST_LEN)
+endif()
+
+if(TARGET_ARCH_LIST_LEN EQUAL 1)
+    list(GET TARGET_ARCH_LIST 0 ITEM)
+    string(TOLOWER "${ITEM}" ARCH_LOWER)
+    if(ARCH_LOWER STREQUAL "c600")
+        add_definitions(-DXCORE1500)
+        set(MACA_ARCH "xcore1500")
+        message(STATUS "Set arch=xcore1500")
+    else()
+        # Set c500 as default single-architecture compilation target
+        add_definitions(-DXCORE1000)
+        set(MACA_ARCH "xcore1000")
+        message(STATUS "Set arch=xcore1000")
+    endif()
+else()
+    set(MACA_ARCH "all")
+    message (STATUS "Set arch=xcore1000,xcore1500")
+endif()
+
+option(BUILD_WITH_CPP    "Build cpp library" true)
+option(BUILD_WITH_KERNEL "Build kernel"      true)
+option(FAST_BUILD        "Fast build"        OFF)
+option(GEN_KERNEL        "Generate kernel"   OFF)
+
+message(STATUS "BUILD_WITH_CPP:${BUILD_WITH_CPP}")
+message(STATUS "BUILD_WITH_KERNEL:${BUILD_WITH_KERNEL}")
+message(STATUS "FAST_BUILD:${FAST_BUILD}")
+message(STATUS "GEN_KERNEL:${GEN_KERNEL}")
+
+# set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CMAKE_COMMAND} -E time")
+# set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "../compile_time.sh")
+
 set(CMAKE_C_COMPILER ${MACA_PATH}/tools/cu-bridge/bin/cucc)
 set(CMAKE_CXX_COMPILER ${MACA_PATH}/tools/cu-bridge/bin/cucc)
+set(CMAKE_PREFIX_PATH ${PREBUILT})
+message(STATUS "CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH}")
 
-include(./cmake/capi.cmake)
-
-
+add_compile_options(-w)
+add_compile_options(-Wno-format)
 add_compile_options(-x maca)
 add_compile_options(--compiler-options -fPIC)
 add_compile_options(-O3)
@@ -23,14 +79,20 @@ add_compile_options(-std=c++17)
 add_compile_options(--expt-relaxed-constexpr)
 add_compile_options(--expt-extended-lambda)
 add_compile_options(--use_fast_math)
+add_compile_options(-fno-strict-aliasing)
 add_compile_options("SHELL:-mllvm -metaxgpu-inlinescope=50")
 add_compile_options("SHELL:-mllvm -metaxgpu-disable-bsm-offset=0")
 add_compile_options(-Xclang -menable-no-nans)
 add_compile_options("SHELL:-gencode arch=compute_80,code=sm_80")
 add_compile_options("SHELL:-gencode arch=compute_90,code=sm_90")
 add_compile_options("SHELL:-mllvm -metaxgpu-enable-promote-kernel-arguments")
+
 add_compile_options("SHELL:-mllvm -metaxgpu-const-KArgs-LDU=1")
+add_compile_options("SHELL:-mllvm -metaxgpu-enable-gvn-loadclobber=false")
 add_compile_options("SHELL:-mllvm -metaxgpu-enable-unorder-dispatch")
+add_compile_options("SHELL:-mllvm -metaxgpu-disable-early-vector-combine=true")
+add_compile_options("SHELL:-mllvm -metaxgpu-llvm19-inline-max-bb=2000")
+add_compile_options("SHELL:-mllvm -metaxgpu-preisel-simplifycfg=true")
 
 add_compile_definitions(EXPORT_LIB)
 add_compile_definitions(USE_MACA)
@@ -38,93 +100,151 @@ add_compile_definitions(NV_ARCH_A100)
 add_compile_definitions(__FAST_HALF_CVT__)
 add_compile_definitions(__MERGE_LDS_B64)
 
+if(NOT DEFINED HDIM)
+    set(HDIM 0)
+endif()
+
+if(NOT DEFINED FA_TYPE)
+    set(FA_TYPE "ALL")
+endif()
+message(STATUS "HDIM=${HDIM},FA_TYPE=${FA_TYPE}")
+
+STRING(TOUPPER "${FA_TYPE}" FA_TYPE_UPPER)
+
+if(${HDIM} STREQUAL "0" AND NOT ${FA_TYPE_UPPER} STREQUAL "ALL")
+    MESSAGE(STATUS "Setting DTYPE to ALL because HDIM is 0")
+    set(FA_TYPE_UPPER "ALL")
+endif()
+
+if (${FA_TYPE_UPPER} STREQUAL "ALL")
+    add_compile_definitions(FA_DTYPE_ALL)
+elseif (${FA_TYPE_UPPER} STREQUAL "FP16")
+    add_compile_definitions(FA_DTYPE_FP16)
+elseif (${FA_TYPE_UPPER} STREQUAL "BF16")
+    add_compile_definitions(FA_DTYPE_BF16)
+else()
+    MESSAGE(FATAL_ERROR "FA_TYPE is ${FA_TYPE}, which is not ALL, FP16, or BF16")
+endif()
+
+if(NOT HDIM STREQUAL "0")
+    add_compile_definitions(HDIM_CONFIG=${HDIM})
+    add_compile_definitions(HDIM_${HDIM})
+else()
+    add_compile_definitions(HDIM_ALL)
+endif()
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/csrc
+    ${CMAKE_CURRENT_SOURCE_DIR}/csrc/capi
     ${CMAKE_CURRENT_SOURCE_DIR}/csrc/flash_attn
-    ${CMAKE_CURRENT_SOURCE_DIR}/csrc/flash_attn/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/csrc/flash_attn/flash_api
+    ${CMAKE_CURRENT_SOURCE_DIR}/csrc/flash_attn/flash_dispatch
+    ${CMAKE_CURRENT_SOURCE_DIR}/csrc/flash_attn/flash_kernel
+    ${CMAKE_CURRENT_SOURCE_DIR}/csrc/flash_attn/flash_global
+    ${CMAKE_CURRENT_SOURCE_DIR}/csrc/flash_attn/flash_kernel/feature
+    ${CMAKE_CURRENT_SOURCE_DIR}/csrc/flash_attn/flash_kernel/fwd_kernel
+    ${CMAKE_CURRENT_SOURCE_DIR}/csrc/flash_attn/flash_kernel/bwd_kernel
+    ${CMAKE_CURRENT_SOURCE_DIR}/csrc/flash_attn/flash_kernel/kernel_traits
+    ${CMAKE_CURRENT_SOURCE_DIR}/csrc/flash_attn/flash_run
+    ${CMAKE_CURRENT_SOURCE_DIR}/csrc/flash_attn/utils
+    ${CMAKE_CURRENT_SOURCE_DIR}/csrc/common
     ${MACA_PATH}/tools/cu-bridge/include
     ${CMAKE_CURRENT_SOURCE_DIR}/csrc/mctlass/include
 )
 
+include(./cmake/build_flash_attn.cmake)
 
-# Set the folder of object file
-set(PYTHON_SETUP_BUILD ${CMAKE_SOURCE_DIR}/build)
-find_temp_folder(BUID_TEMP_DIR ${PYTHON_SETUP_BUILD})
-set(OBJ_FILES_DIR ${BUID_TEMP_DIR}/csrc/flash_attn/src/)
-message(STATUS ${OBJ_FILES_DIR})
+if (BUILD_WITH_KERNEL)
 
-# message(STATUS ${BWD_OBJECT_FILES})
-get_fwd_compile_obj(${OBJ_FILES_DIR} FWD_COMPILE_OBJ FWD_PY_OBJ)
-get_fwd_split_compile_obj(${OBJ_FILES_DIR} FWD_SPLIT_COMPILE_OBJ FWD_SPLIT_PY_OBJ)
-get_bwd_compile_obj(${OBJ_FILES_DIR} BWD_COMPILE_OBJ BWD_PY_OBJ)
+    STRING(TOLOWER "${FA_TYPE}" FA_TYPE_LOWER)
 
-# message(STATUS "FWD_COMPILE_OBJ:${FWD_COMPILE_OBJ}")
-# message(STATUS "FWD_PY_OBJ:${FWD_PY_OBJ}")
-# message(STATUS "FWD_SPLIT_COMPILE_OBJ:${FWD_SPLIT_COMPILE_OBJ}")
-# message(STATUS "FWD_SPLIT_PY_OBJ:${FWD_SPLIT_PY_OBJ}")
-# message(STATUS "BWD_COMPILE_OBJ:${BWD_COMPILE_OBJ}")
-# message(STATUS "BWD_PY_OBJ:${BWD_PY_OBJ}")
+    if(FAST_BUILD AND GEN_KERNEL)
+        execute_process(
+            COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/run_generator.sh capi ${HDIM} ${FA_TYPE_LOWER} ${MACA_ARCH}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            RESULT_VARIABLE result
+            OUTPUT_VARIABLE output
+            ERROR_VARIABLE error
+        )
 
-set(OBJECT_FILES ${FWD_PY_OBJ} ${FWD_SPLIT_PY_OBJ} ${BWD_PY_OBJ})
-set(COMPILE_SRC_FILES ${FWD_COMPILE_OBJ} ${FWD_SPLIT_COMPILE_OBJ} ${BWD_COMPILE_OBJ})
+        if(NOT result EQUAL 0)
+            message(ERROR ": Generate kernel files failed, output:\n${error}")
+        endif()
+    endif()
 
-set(LIBRARY_NAME flash_attn2_static)
-
-add_library(${LIBRARY_NAME} STATIC csrc/capi/src/empty.cpp)
-set_target_properties(${LIBRARY_NAME} PROPERTIES
-                      OUTPUT_NAME ${LIBRARY_NAME})
-
-
-set(STATIC_LIB lib${LIBRARY_NAME})
-
-add_custom_target(build_static_lib ALL
-    COMMAND ${CMAKE_AR} -rc ${CMAKE_CURRENT_BINARY_DIR}/${STATIC_LIB}.a ${OBJECT_FILES}
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
-
-include_directories(
-    csrc/capi
-)
-
-set(capisrc
-    csrc/capi/src/flash_capi.cpp
-    csrc/capi/src/tensor.cpp
-    csrc/capi/src/utils.cpp
-    csrc/capi/src/helper.cpp
-    csrc/flash_attn/src/run_mha.cpp
-)
-
-add_library(mcFlashAttn SHARED ${capisrc} ${COMPILE_SRC_FILES})
-
-add_dependencies(mcFlashAttn build_static_lib)
-
-link_directories(
-    ${CMAKE_CURRENT_BINARY_DIR}
-    ${MACA_PATH}/lib
-)
-
-target_link_libraries(mcFlashAttn
-                      -Wl,--whole-archive
-                      ${LIBRARY_NAME}
-                      -Wl,--no-whole-archive
-                      mcblas)
-
-set_target_properties(mcFlashAttn PROPERTIES
-                    INSTALL_RPATH "$ORIGIN;$ORIGIN/../../lib;$ORIGIN/../../lib64;$ORIGIN/../lib64"
-)
-
-install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/csrc/capi/flash_attn.h DESTINATION include/flash_attn
-)
-
-
-
-install(TARGETS mcFlashAttn LIBRARY DESTINATION lib)
-# set cpack using param
-set( LIBRARY_NAME mcflashattn )
-if("${PACKAGE_LOCATION}" STREQUAL "package")
-    include (cmake/CPack_1.cmake)
-else()
-    include (cmake/CPack.cmake)
+    build_flash_attn_host(mcFlashAttnHostStatic)
+    if(${MACA_ARCH} STREQUAL "xcore1000")
+        build_flash_attn_kernel(mcFlashAttnKernelXcore1000Static "xcore1000" ${HDIM} ${FA_TYPE})
+        target_compile_options(mcFlashAttnKernelXcore1000Static PRIVATE --offload-arch=xcore1000)
+    elseif (${MACA_ARCH} STREQUAL "xcore1500")
+        build_flash_attn_kernel(mcFlashAttnKernelXcore1500Static "xcore1500" ${HDIM} ${FA_TYPE})
+        target_compile_options(mcFlashAttnKernelXcore1500Static PRIVATE --offload-arch=xcore1500)
+    elseif (${MACA_ARCH} STREQUAL "all")
+        build_flash_attn_kernel(mcFlashAttnKernelXcore1000Static "xcore1000" ${HDIM} ${FA_TYPE})
+        build_flash_attn_kernel(mcFlashAttnKernelXcore1500Static "xcore1500" ${HDIM} ${FA_TYPE})
+        target_compile_options(mcFlashAttnKernelXcore1000Static PRIVATE --offload-arch=xcore1000)
+        target_compile_options(mcFlashAttnKernelXcore1500Static PRIVATE --offload-arch=xcore1500)
+    else()
+        message(FATAL_ERROR "the arch ${MACA_ARCH} is not supported")
+    endif()
 endif()
+
+# build cpp so , will be closed when start from setup
+if(BUILD_WITH_CPP)
+
+    file(GLOB CAPI_SRC "csrc/capi/src/*.cpp")
+
+    add_library(mcFlashAttn SHARED  ${CAPI_SRC})
+
+    target_link_directories(
+        mcFlashAttn PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR}
+        ${MACA_PATH}/lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/build_kernel
+    )
+    target_link_libraries(mcFlashAttn
+                            -Wl,--whole-archive
+                            mcFlashAttnHostStatic
+                            -Wl,--no-whole-archive
+                            mcblas
+                            yaml-cpp)
+    if(${MACA_ARCH} STREQUAL "xcore1000")
+        target_link_libraries(mcFlashAttn
+                            -Wl,--whole-archive
+                            mcFlashAttnKernelXcore1000Static
+                            -Wl,--no-whole-archive)
+        message(STATUS "xcore1000 static lib is linked")
+    elseif (${MACA_ARCH} STREQUAL "xcore1500")
+        target_link_libraries(mcFlashAttn
+                            -Wl,--whole-archive
+                            mcFlashAttnKernelXcore1500Static
+                            -Wl,--no-whole-archive)
+        message(STATUS "xcore1500 static lib is linked")
+    elseif (${MACA_ARCH} STREQUAL "all")
+        target_link_libraries(mcFlashAttn
+                            -Wl,--whole-archive
+                            mcFlashAttnKernelXcore1000Static
+                            mcFlashAttnKernelXcore1500Static
+                            -Wl,--no-whole-archive)
+        message(STATUS "xcore1500 and xcore 1500 static lib is linked")
+    endif()
+
+
+
+    set_target_properties(mcFlashAttn PROPERTIES
+                        INSTALL_RPATH "$ORIGIN;$ORIGIN/../../lib;$ORIGIN/../../lib64;$ORIGIN/../lib64"
+    )
+
+    target_link_options(mcFlashAttn PRIVATE "-T${CMAKE_SOURCE_DIR}/a.lds")
+    target_link_options(mcFlashAttn PRIVATE "-nodefaultrpath")
+
+    install(FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/csrc/capi/flash_attn.h DESTINATION include/flash_attn
+    )
+
+    install(TARGETS mcFlashAttn LIBRARY DESTINATION lib)
+    # set cpack using param
+    set( LIBRARY_NAME mcflashattn )
+    include (cmake/CPack.cmake)
+
+endif(BUILD_WITH_CPP)

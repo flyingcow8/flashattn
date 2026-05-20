@@ -38,6 +38,4 @@ def fp16_compress_hook(
         decompressed_tensor.copy_(fut.value()[0])
         return decompressed_tensor
 
-    # TODO: maybe have a backoff strategy: check if the buffer has inf / NaN, in that case
-    # resend with fp32?
     return fut.then(decompress)

@@ -11,6 +11,7 @@
 #define MCFLASH_PATCH_VERSION 0
 #define MCFLASHATTN_VERSION MCFLASH_MAJOR_VERSION * 10000 + MCFLASH_MINOR_VERSION * 100 + MCFLASH_PATCH_VERSION
 
+
 typedef enum {
     MCFLASHATTN_STATUS_SUCCESS = 0,
     MCFLASHATTN_STATUS_FAILED,
@@ -45,16 +46,20 @@ inline struct Tensor* make_tensor(){
     return tensor;
 }
 
-
 struct McFlashExtendParameter {
-    void * data;
+    float softcap;
+    Tensor_t leftpad_k_;
+    Tensor_t block_table_;
     int version;
 };
+
 typedef struct McFlashExtendParameter *mcflashattnExtendParameter_t;
 
 inline mcflashattnExtendParameter_t make_extend_param(){
     mcflashattnExtendParameter_t extend_param = (struct McFlashExtendParameter*)malloc(sizeof(struct McFlashExtendParameter));
-    extend_param->data = NULL;
+    extend_param->softcap = 0.0f;
+    extend_param->leftpad_k_ = NULL;
+    extend_param->block_table_ = NULL;
     extend_param->version = MCFLASHATTN_VERSION;
 
     return extend_param;
@@ -104,6 +109,16 @@ Tensor_t make_contiguous_tensor4d(
     int seqlen,
     int head_num,
     int head_size
+);
+
+Tensor_t make_contiguous_tensor5d(
+    void *data,
+    mcflashattnDataType_t dtype,
+    int size0,
+    int size1,
+    int size2,
+    int size3,
+    int size4
 );
 
 
@@ -175,6 +190,15 @@ void print_tensor_info(Tensor_t tensor);
 void release_tensor(Tensor_t tensor);
 void release_extend_param(mcflashattnExtendParameter_t extend_param);
 
+void set_extend_parameter_softcap(mcflashattnExtendParameter_t extend_param, const float softcap);
+void set_extend_parameter_leftpad(mcflashattnExtendParameter_t extend_param, void *data, int padding_size);
+void set_extend_parameter_block_table(mcflashattnExtendParameter_t extend_param, void *data, int block_table_size_m,
+                                     int block_table_size_n);
+
+float get_extend_parameter_softcap(mcflashattnExtendParameter_t extend_param);
+Tensor_t get_extend_parameter_leftpad(mcflashattnExtendParameter_t extend_param);
+Tensor_t get_extend_parameter_block_table(mcflashattnExtendParameter_t extend_param);
+
 int compute_num_splits(int batch_size,int num_heads,int head_size,int seqlen_k,int seqlen_q);
 int head_size_pad(int head_size_og);
 
@@ -184,55 +208,6 @@ int head_size_pad(int head_size_og);
 // Flash Attention2 API
 //
 ///////////////////////////////////////////////////////////////////////////////////
-
-mcflashattnStatus_t
-mha_fwd_inference(
-    int64_t batch_size,
-    int64_t seqlen_q,
-    int64_t num_heads_q,
-    int64_t seqlen_k,
-    int64_t num_heads_k,
-    int64_t head_size_og,
-    const Tensor_t q,                 // batch_size x seqlen_q x num_heads_q x head_size
-    const Tensor_t k,         // batch_size x seqlen_k x num_heads_k x head_size
-    const Tensor_t v,         // batch_size x seqlen_k x num_heads_k x head_size
-    Tensor_t out,            // batch_size x seqlen_q x num_heads x head_size
-    const Tensor_t alibi_slopes, // num_heads or batch_size x num_heads
-    const Tensor_t attn_mask,    // batch_size x seqlen_q
-    const float softmax_scale,
-    bool is_causal,
-    int window_size_left,
-    int window_size_right,
-    mcStream_t stream,
-    mcflashattnExtendParameter_t extend_parameter_ = NULL// extend paramerter
-);
-
-mcflashattnStatus_t
-mha_varlen_fwd_inference(
-    int64_t batch_size,
-    int64_t total_q,
-    int64_t num_heads_q,
-    int64_t total_k,
-    int64_t num_heads_k,
-    int64_t head_size_og,
-    const Tensor_t q,         // total_q x num_heads x head_size, total_q := \sum_{i=0}^{b} s_i
-    const Tensor_t k,         // total_k x num_heads_k x head_size, total_k := \sum_{i=0}^{b} s_i
-    const Tensor_t v,         // total_k x num_heads_k x head_size, total_k := \sum_{i=0}^{b} s_i
-    Tensor_t out,             // total_q x num_heads x head_size, total_q := \sum_{i=0}^{b} s_i
-    const Tensor_t cu_seqlens_q,  // b+1
-    const Tensor_t cu_seqlens_k,  // b+1
-    const Tensor_t seqused_k,      // b. If given, only this many elements of each batch element's keys are used.
-    const Tensor_t alibi_slopes, // num_heads or batch_size x num_heads
-    int max_seqlen_q,
-    const int max_seqlen_k,
-    const float softmax_scale,
-    // const bool zero_tensors, python set to false
-    bool is_causal,
-    int window_size_left,
-    int window_size_right,
-    mcStream_t stream,
-    mcflashattnExtendParameter_t extend_parameter_ = NULL// extend paramerter
-);
 
 mcflashattnStatus_t
 mha_fwd_kvcache(
@@ -298,8 +273,8 @@ mha_varlen_fwd(
         int64_t head_size_og,
         const Tensor_t q,                // total_q x num_heads x head_size, total_q := \sum_{i=0}^{b} s_i
         const Tensor_t k,         // total_k x num_heads_k x head_size, total_k := \sum_{i=0}^{b} s_i
-        const Tensor_t v,         // total_k x num_heads_k x head_size, total_k := \sum_{i=0}^{b} s_i
-        Tensor_t out,             // total_q x num_heads x head_size, total_q := \sum_{i=0}^{b} s_i
+        const Tensor_t v,         // total_k x num_heads_k x head_size_v, total_k := \sum_{i=0}^{b} s_i
+        Tensor_t out,             // total_q x num_heads x head_size_v, total_q := \sum_{i=0}^{b} s_i
         const Tensor_t cu_seqlens_q,  // b+1
         const Tensor_t cu_seqlens_k,  // b+1
         const Tensor_t seqused_k,      // b. If given, only this many elements of each batch element's keys are used.
@@ -319,6 +294,9 @@ mha_varlen_fwd(
         mcflashattnExtendParameter_t extend_parameter_ = NULL// extend paramerter
         );
 
+// NOTE: For MQA/GQA bwd, C API does not depend on Torch, so C API will not call torch reduce_sum op
+//       and reduce_sum need to be called manually by the user.
+//       reduce_sum for dk and dv from (b, sk, h_q, d) to (b, sk, h_k, d), sum along head_num dimension
 mcflashattnStatus_t
 mha_bwd(int64_t batch_size,
         int64_t seqlen_q,
@@ -334,8 +312,8 @@ mha_bwd(int64_t batch_size,
         const Tensor_t softmax_d, // batch_size x num_heads x seqlen_q_rounded
         const Tensor_t softmax_lse,     // b x h x seqlen_q
         const Tensor_t dq,   // batch_size x seqlen_q x num_heads x head_size
-        const Tensor_t dk,   // batch_size x seqlen_k x num_heads_k x head_size
-        const Tensor_t dv,   // batch_size x seqlen_k x num_heads_k x head_size
+        const Tensor_t dk,   // batch_size x seqlen_k x num_heads x head_size
+        const Tensor_t dv,   // batch_size x seqlen_k x num_heads x head_size
         const Tensor_t dq_accum,   // batch_size x seqlen_q x num_heads x head_size
         const Tensor_t alibi_slopes, // num_heads or batch_size x num_heads
         const Tensor_t attn_mask,
@@ -350,6 +328,9 @@ mha_bwd(int64_t batch_size,
         mcflashattnExtendParameter_t extend_parameter_ = NULL// extend paramerter
         );
 
+// NOTE: For MQA/GQA bwd, C API does not depend on Torch, so C API will not call torch reduce_sum op
+//       and reduce_sum need to be called manually by the user.
+//       reduce_sum for dk and dv from (total_k, h_q, d) to (total_k, h_k, d), sum along head_num dimension
 mcflashattnStatus_t
 mha_varlen_bwd(int64_t batch_size,
                int64_t total_q,
@@ -357,16 +338,16 @@ mha_varlen_bwd(int64_t batch_size,
                int64_t total_k,
                int64_t num_heads_k,
                int64_t head_size_og,
-               const Tensor_t dout,  // total_q x num_heads, x head_size
+               const Tensor_t dout,  // total_q x num_heads, x head_size_v
                const Tensor_t q,   // total_q x num_heads x head_size, total_q := \sum_{i=0}^{b} s_i
                const Tensor_t k,   // total_k x num_heads_k x head_size, total_k := \sum_{i=0}^{b} s_i
-               const Tensor_t v,   // total_k x num_heads_k x head_size, total_k := \sum_{i=0}^{b} s_i
+               const Tensor_t v,   // total_k x num_heads_k x head_size_v, total_k := \sum_{i=0}^{b} s_i
                Tensor_t out,   // total_q x num_heads x head_size
                const Tensor_t softmax_d, // batch_size x num_heads x seqlen_q_rounded
                const Tensor_t softmax_lse,     // b x h x s   softmax logsumexp
                const Tensor_t dq,   // total_q x num_heads x head_size, total_q := \sum_{i=0}^{b} s_i
-               const Tensor_t dk,   // total_k x num_heads_k x head_size, total_k := \sum_{i=0}^{b} s_i
-               const Tensor_t dv,   // total_k x num_heads_k x head_size, total_k := \sum_{i=0}^{b} s_i
+               const Tensor_t dk,   // total_k x num_heads x head_size, total_k := \sum_{i=0}^{b} s_i
+               const Tensor_t dv,   // total_k x num_heads x head_size_v, total_k := \sum_{i=0}^{b} s_i
                const Tensor_t dq_accum,   // batch_size x seqlen_q x num_heads x head_size
                const Tensor_t cu_seqlens_q,  // b+1
                const Tensor_t cu_seqlens_k,  // b+1
@@ -388,5 +369,3 @@ mha_varlen_bwd(int64_t batch_size,
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-
-
