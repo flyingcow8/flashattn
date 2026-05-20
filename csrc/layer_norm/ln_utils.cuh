@@ -633,7 +633,6 @@ struct Stats {
     template<uint32_t N>
     inline __device__ stats_t compute(const T (&elts)[N], const T rn) {
         constexpr T ELTS_PER_ROW_PER_CTA = N * WARPS_N * THREADS_PER_WARP;
-        // TODO rn is not really needed here..
         constexpr T block_rn = 1.f / T(ELTS_PER_ROW_PER_CTA);
         stats_t block_stats = block_stats_.compute(elts, block_rn);
 

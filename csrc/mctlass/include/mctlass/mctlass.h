@@ -172,6 +172,7 @@ static __inline__ __host__ mcError_t mcFuncSetAttribute(
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// MCTLASS_PRAGMA_(UNROLL|NO_UNROLL) optimization directives for the MACA compiler.
 #if defined(__MACA_ARCH__) && !defined(__INTELLISENSE__)
   #if defined(__MACACC_RTC__) || (defined(__clang__) && defined(__MACA__))
     #define MCTLASS_PRAGMA_UNROLL _Pragma("unroll")

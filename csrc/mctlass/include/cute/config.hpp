@@ -57,6 +57,14 @@
 #  define CUTE_INLINE_CONSTANT                 static constexpr
 #endif
 
+#if defined(__MACA_ARCH__) && (__MACA_ARCH__ == 1000)
+#  define CUTE_MACA_XCORE1000_ENABLED
+#endif
+
+#if defined(__MACA_ARCH__) && (__MACA_ARCH__ == 1500 || __MACA_ARCH__ == 1600)
+#  define CUTE_MACA_XCORE1500_ENABLED
+#endif
+
 // __grid_constant__ was introduced in CUDA 11.7.
 // #if ((__CUDACC_VER_MAJOR__ >= 12) || ((__CUDACC_VER_MAJOR__ == 11) && (__CUDACC_VER_MINOR__ >= 7)))
 #if 0
@@ -120,7 +128,7 @@
 #define CUTE_STATIC_ASSERT_V(x,...) static_assert(decltype(x)::value, ##__VA_ARGS__)
 
 #if defined(__MACA_ARCH__)
-#  define CUTE_RUNTIME_ASSERT(x) __brkpt()
+#  define CUTE_RUNTIME_ASSERT(x) assert(0 && x);__brkpt()
 #else
 #  define CUTE_RUNTIME_ASSERT(x) assert(0 && x)
 #endif

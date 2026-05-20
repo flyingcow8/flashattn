@@ -91,7 +91,6 @@ struct Multihead_attention_params_base {
     float rotary_base = 0.0f;
     // The maximum length of input sentences.
     int max_input_length = 0;
-    // The current timestep. TODO(bhsueh) Check that do we only this param in cross attention?
     int timestep = 0;
     // The current timestep of each sentences (support different timestep for different sentences)
 

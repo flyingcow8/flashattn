@@ -82,7 +82,9 @@ inline __device__ void ldsmi8(Array<unsigned, MatrixCount> & D, void const* ptr,
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// MCTLASS helper to get SMEM pointer
+//Original MACA impl
 inline __device__ unsigned mctlass_get_smem_pointer_maca(void *ptr) {
+    // TODO(yzhan): cute
     // return cute::cast_smem_ptr_to_uint(ptr);
     MCTLASS_UNUSED(ptr);
     MCTLASS_NOT_IMPLEMENTED();

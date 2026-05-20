@@ -85,6 +85,23 @@ struct Copy_Traits<MACA_CP_ASYNC_CACHEGLOBAL<S,D>>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+template <>
+struct Copy_Traits<MACA_LDS_TRANS_4X16>
+{
+  // Logical thread id to thread idx (16 threads)
+  using ThrID = Layout<_16>;
+
+  // Map from (src-thr,src-val) to bit
+  using SrcLayout = Layout<Shape <Shape<_4, _4>, _64>,
+                           Stride<Stride<_64, _256>,  _1>>;
+  // Map from (dst-thr,dst-val) to bit
+  using DstLayout = Layout<Shape <_16, Shape<_16, _4>>,
+                           Stride<_16, Stride<_1, _256>>>;
+
+  // Reference map from (thr,val) to bit
+  using RefLayout = DstLayout;
+};
+
 // Element copy selector
 template <class SrcTensor, class DstTensor>
 CUTE_HOST_DEVICE constexpr

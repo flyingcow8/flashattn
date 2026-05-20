@@ -169,6 +169,152 @@ struct MACA_16x16x16_F32F16F16F32
 
   }
 };
+
+// MMA 16x16x32 TN
+struct MACA_16x16x32_F32F16F16F32
+{
+  using DRegisters = float[4];
+  using ARegisters = uint32_t[4];
+  using BRegisters = uint32_t[4];
+  using CRegisters = float[4];
+  using VectorType = __NATIVE_VECTOR__(2, uint32_t);
+
+  CUTE_HOST_DEVICE static void
+  fma(float         & d0, float         & d1, float         & d2, float         & d3,
+      uint32_t const& a0, uint32_t const& a1, // A, k0
+      uint32_t const& a2, uint32_t const& a3, // A, k1
+      uint32_t const& b0, uint32_t const& b1, // B, k0
+      uint32_t const& b2, uint32_t const& b3, // B, k1
+      float const   & c0, float const   & c1, float const   & c2, float const   & c3)
+  {
+
+    VectorType a = {a0, a1};
+    VectorType b = {b0, b1};
+
+    // first mma , A(k0) * B(k0)
+    auto acc = __builtin_mxc_mma_16x16x16f16(b, a, {c0, c1, c2, c3});
+
+    // second mma , A(k1) * B(k1), accum
+    a = {a2, a3};
+    b = {b2, b3};
+    acc = __builtin_mxc_mma_16x16x16f16(b, a, {acc[0], acc[1], acc[2], acc[3]});
+
+    d0 = acc[0];
+    d1 = acc[1];
+    d2 = acc[2];
+    d3 = acc[3];
+  }
+};
+
+// MMA 16x64x16 TN
+// use for lds4x4 + perm4x4
+struct MACA_16x64x16_F32F16F16F32
+{
+  using DRegisters = float[16];
+  using ARegisters = uint32_t[2];
+  using BRegisters = uint32_t[8];
+  using CRegisters = float[16];
+  using VectorType = __NATIVE_VECTOR__(2, uint32_t);
+
+  CUTE_HOST_DEVICE static void
+  fma(float         & d0, float         & d1, float         & d2, float         & d3,
+      float         & d4, float         & d5, float         & d6, float         & d7,
+      float         & d8, float         & d9, float         & d10, float         & d11,
+      float         & d12, float         & d13, float         & d14, float         & d15,
+      uint32_t const& a0, uint32_t const& a1, // A, k0
+      uint32_t const& b0, uint32_t const& b1, // B, m0
+      uint32_t const& b2, uint32_t const& b3, // B, m1
+      uint32_t const& b4, uint32_t const& b5, // B, m2
+      uint32_t const& b6, uint32_t const& b7, // B, m3
+      float const   & c0, float const   & c1, float const   & c2, float const   & c3,
+      float const   & c4, float const   & c5, float const   & c6, float const   & c7,
+      float const   & c8, float const   & c9, float const   & c10, float const   & c11,
+      float const   & c12, float const   & c13, float const   & c14, float const   & c15)
+  {
+
+    VectorType a = {a0, a1};
+    VectorType b = {b0, b1};
+
+    auto acc0 = __builtin_mxc_mma_16x16x16f16(b, a, {c0, c1, c2, c3});
+    d0 = acc0[0];
+    d1 = acc0[1];
+    d2 = acc0[2];
+    d3 = acc0[3];
+
+    b = {b2, b3};
+    auto acc1 = __builtin_mxc_mma_16x16x16f16(b, a, {c4, c5, c6, c7});
+    d4 = acc1[0];
+    d5 = acc1[1];
+    d6 = acc1[2];
+    d7 = acc1[3];
+
+    b = {b4, b5};
+    auto acc2 = __builtin_mxc_mma_16x16x16f16(b, a, {c8, c9, c10, c11});
+    d8 = acc2[0];
+    d9 = acc2[1];
+    d10 = acc2[2];
+    d11 = acc2[3];
+
+    b = {b6, b7};
+    auto acc3 = __builtin_mxc_mma_16x16x16f16(b, a, {c12, c13, c14, c15});
+    d12 = acc3[0];
+    d13 = acc3[1];
+    d14 = acc3[2];
+    d15 = acc3[3];
+
+  }
+};
+
+// MMA 16x16x16 TN
+struct MACA_16x16x16_I32I8I8I32 {
+  using DRegisters = int32_t[4];
+  using ARegisters = int32_t[1];
+  using BRegisters = int32_t[1];
+  using CRegisters = int32_t[4];
+
+  CUTE_HOST_DEVICE static void fma(
+            int32_t &d0, int32_t &d1, int32_t &d2, int32_t &d3,
+            int32_t const &a0,
+            int32_t const &b0,
+            int32_t const &c0, int32_t const &c1, int32_t const &c2, int32_t const &c3) {
+
+#if defined(CUTE_MACA_XCORE1000_ENABLED)
+    auto result = __builtin_mxc_mma_16x16x16i8(b0, a0, {c0, c1, c2, c3});
+    d0 = result[0];
+    d1 = result[1];
+    d2 = result[2];
+    d3 = result[3];
+#else
+    CUTE_RUNTIME_ASSERT("Attempting to use MACA_16x16x16_I32I8I8I32 without CUTE_MACA_XCORE1000_ENABLED");
+#endif
+
+  }
+};
+
+// MMA 16x16x32 TN
+struct MACA_16x16x32_I32I8I8I32 {
+  using DRegisters = int32_t[4];
+  using ARegisters = int32_t[2];
+  using BRegisters = int32_t[2];
+  using CRegisters = int32_t[4];
+
+  CUTE_HOST_DEVICE static void fma(
+            int32_t &d0, int32_t &d1, int32_t &d2, int32_t &d3,
+            int32_t const &a0, int32_t const &a1,
+            int32_t const &b0, int32_t const &b1,
+            int32_t const &c0, int32_t const &c1, int32_t const &c2, int32_t const &c3) {
+
+#if defined(CUTE_MACA_XCORE1500_ENABLED)
+    auto result = __builtin_mxc_mma_16x16x32i8({b0, b1}, {a0, a1}, {c0, c1, c2, c3});
+    d0 = result[0];
+    d1 = result[1];
+    d2 = result[2];
+    d3 = result[3];
+#else
+    CUTE_RUNTIME_ASSERT("Attempting to use MACA_16x16x32_I32I8I8I32 without CUTE_MACA_XCORE1500_ENABLED");
+#endif
+  }
+};
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // MMA 16x8x16 TN
@@ -402,6 +548,101 @@ struct MACA_16x16x16_F32BF16BF16F32
     d1 = result[1];
     d2 = result[2];
     d3 = result[3];
+  }
+};
+
+// MMA 16x16x32 TN
+struct MACA_16x16x32_F32BF16BF16F32
+{
+  using DRegisters = float[4];
+  using ARegisters = uint32_t[4];
+  using BRegisters = uint32_t[4];
+  using CRegisters = float[4];
+  using VectorType = __NATIVE_VECTOR__(2, uint32_t);
+
+  CUTE_HOST_DEVICE static void
+  fma(float         & d0, float         & d1, float         & d2, float         & d3,
+      uint32_t const& a0, uint32_t const& a1, // A, k0
+      uint32_t const& a2, uint32_t const& a3, // A, k1
+      uint32_t const& b0, uint32_t const& b1, // B, k0
+      uint32_t const& b2, uint32_t const& b3, // B, k1
+      float const   & c0, float const   & c1, float const   & c2, float const   & c3)
+  {
+
+    VectorType a = {a0, a1};
+    VectorType b = {b0, b1};
+
+    // first mma , A(k0) * B(k0)
+    auto acc = __builtin_mxc_mma_16x16x16bf16(b, a, {c0, c1, c2, c3});
+
+    // second mma , A(k1) * B(k1), accum
+    a = {a2, a3};
+    b = {b2, b3};
+    acc = __builtin_mxc_mma_16x16x16bf16(b, a, {acc[0], acc[1], acc[2], acc[3]});
+
+    d0 = acc[0];
+    d1 = acc[1];
+    d2 = acc[2];
+    d3 = acc[3];
+  }
+};
+
+// MMA 16x64x16 TN
+// use for lds4x4 + perm4x4
+struct MACA_16x64x16_F32BF16BF16F32
+{
+  using DRegisters = float[16];
+  using ARegisters = uint32_t[2];
+  using BRegisters = uint32_t[8];
+  using CRegisters = float[16];
+  using VectorType = __NATIVE_VECTOR__(2, uint32_t);
+
+  CUTE_HOST_DEVICE static void
+  fma(float         & d0, float         & d1, float         & d2, float         & d3,
+      float         & d4, float         & d5, float         & d6, float         & d7,
+      float         & d8, float         & d9, float         & d10, float         & d11,
+      float         & d12, float         & d13, float         & d14, float         & d15,
+      uint32_t const& a0, uint32_t const& a1, // A, k0
+      uint32_t const& b0, uint32_t const& b1, // B, m0
+      uint32_t const& b2, uint32_t const& b3, // B, m1
+      uint32_t const& b4, uint32_t const& b5, // B, m2
+      uint32_t const& b6, uint32_t const& b7, // B, m3
+      float const   & c0, float const   & c1, float const   & c2, float const   & c3,
+      float const   & c4, float const   & c5, float const   & c6, float const   & c7,
+      float const   & c8, float const   & c9, float const   & c10, float const   & c11,
+      float const   & c12, float const   & c13, float const   & c14, float const   & c15)
+  {
+
+    VectorType a = {a0, a1};
+    VectorType b = {b0, b1};
+
+    auto acc0 = __builtin_mxc_mma_16x16x16bf16(b, a, {c0, c1, c2, c3});
+    d0 = acc0[0];
+    d1 = acc0[1];
+    d2 = acc0[2];
+    d3 = acc0[3];
+
+    b = {b2, b3};
+    auto acc1 = __builtin_mxc_mma_16x16x16bf16(b, a, {c4, c5, c6, c7});
+    d4 = acc1[0];
+    d5 = acc1[1];
+    d6 = acc1[2];
+    d7 = acc1[3];
+
+    b = {b4, b5};
+    auto acc2 = __builtin_mxc_mma_16x16x16bf16(b, a, {c8, c9, c10, c11});
+    d8 = acc2[0];
+    d9 = acc2[1];
+    d10 = acc2[2];
+    d11 = acc2[3];
+
+    b = {b6, b7};
+    auto acc3 = __builtin_mxc_mma_16x16x16bf16(b, a, {c12, c13, c14, c15});
+    d12 = acc3[0];
+    d13 = acc3[1];
+    d14 = acc3[2];
+    d15 = acc3[3];
+
   }
 };
 

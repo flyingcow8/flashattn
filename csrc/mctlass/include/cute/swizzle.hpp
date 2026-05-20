@@ -496,4 +496,34 @@ CUTE_HOST std::ostream& operator<<(std::ostream& os, Swizzle<B,M,S> const&)
 }
 #endif // !defined(__MACACC_RTC__)
 
+/*
+ *  input:
+ *  <elementPerThread> : How many elements does a thread move at a time
+ *        For example: copy128B, fp16 -> 8, copy128B, fp8 ->16
+ *  <BBits, MBase, SShift> : Same as swizzle
+ *  output:
+ *  offset corresponding to original address
+ *
+ *  usage:
+ *  auto tAgA = make_tensor(tAgA_noSwizzle.data() + get_swizzle_offset<8,3,3,3>(tidx), layout(tAgA_noSwizzle));
+ */
+template <int elementPerThread=8, int BBits, int MBase, int SShift>
+CUTE_HOST_DEVICE int get_swizzle_offset(int tidx) {
+
+  static_assert(MBase >= 0,           "MBase must be positive.");
+  static_assert(BBits >= 0,           "BBits must be positive.");
+  static_assert(SShift >= BBits,      "SShift must be more than BBits.");
+
+  int Mbase_thread = (1 << MBase) / elementPerThread;
+  // eg. (0,0,0)
+  if (Mbase_thread <= 0) {
+    return 0;
+  }
+  int thread_per_row = Mbase_thread * (1 << SShift);
+  int row_id = tidx / thread_per_row;
+  int col_id = tidx % thread_per_row / Mbase_thread;
+  int col_id_new = col_id ^ (row_id % (1 << BBits));
+  return (col_id_new - col_id) * (1 << MBase);
+}
+
 } // end namespace cute

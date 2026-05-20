@@ -42,7 +42,7 @@ Building FlashAttention2 from source code on MACA
 ```
     pip install ninja
     pip install einops
-    pip install setuptools==69.5.1
+    pip install setuptools==78.1.1
     pip install pytest
     pip install packaging
     pip install SentencePiece
@@ -50,27 +50,21 @@ Building FlashAttention2 from source code on MACA
     pip install wheel
 ```
 
-## Step 5: update mctlass source code
-```
-    git submodule update --init
-```
-Or `FlashAttention2/csrc/mctlass` is already in use if in open source project
-
-## Step 6: set MACA environment
+## Step 5: set MACA environment
 ```
     export MACA_PATH=/your/maca/path
     export MACA_CLANG_PATH=$MACA_PATH/mxgpu_llvm/bin
     export CUDA_PATH=$MACA_PATH/tools/cu-bridge
-    export LD_LIBRARY_PATH=$PWD:$MACA_PATH/lib:$MACA_PATH/mxgpu_llvm/lib:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH=$MACA_PATH/lib:$MACA_PATH/mxgpu_llvm/lib:$MACA_PATH/ompi/lib:$LD_LIBRARY_PATH
 ```
 
-## Step 7：build FlashAttention2
+## Step 6：build FlashAttention2
 Build flash-attn in FlashAttention2 diretory with the following command and the whl package will be in dist directory:
 ```
     python setup.py bdist_wheel
 ```
 
-## Step 8：install flash-attn whl package
+## Step 7：install flash-attn whl package
 ```
     pip install dist/flash-attn-version.whl
 ```

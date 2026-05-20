@@ -43,7 +43,6 @@
 #include "mctlass/arch/wmma.h"
 
 #if defined(MCTLASS_ARCH_WMMA_ENABLED)
-// MACA Toolkit includes for mxmaca::wmma needed for binarized matrix multiply.
 //#include <mma.h>
 #include "mctlass/wmma_array.h"
 #endif

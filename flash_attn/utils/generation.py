@@ -222,7 +222,6 @@ def sample_speculative(logits, logits_draft, tokens_draft, top_k=1, top_p=0.0, t
     assert logits_draft.shape == (batch, seqlen, vocab_size)
     assert tokens_draft.shape == (batch, seqlen)
     assert tokens_draft.dtype in [torch.int64, torch.int32]
-    # TODO: if top_k = 1 we can simplify things and only work with indices
     if top_p > 0.0:
         assert top_p <= 1.0, "top-p should be in (0, 1]."
     # Clone so that when we modify for top_p we don't change the original logits
@@ -332,9 +331,6 @@ def decode_speculative(
         decoding = inference_params.seqlen_offset > 0
         if decoding:
             seqlen = input_ids.shape[1]
-            # if inference_params.lengths_per_sample is None:
-            # TODO: in the case of batched decoding where each sequence has a different length,
-            # we need to compute the position_ids for each sequence using lengths_per_sample
             if True:
                 cache_seqlens = torch.full(
                     (input_ids.shape[0],),
@@ -452,9 +448,6 @@ def decode_speculative(
         if debug:
             print(tokens)
             print(num_generated_tokens)
-            # breakpoint()
-        # TODO: we're using the fact that batch_size == 1
-        # TODO: check eos_token_id
         sequences.append(tokens[:1, : num_generated_tokens[0]])
         scores.append(logits[:1, : num_generated_tokens[0]])
         # Note that @model has not evaluated the last sampled token yet, so we'll need to pass

@@ -7,8 +7,10 @@
 #include <initializer_list>
 #include <string>
 
-struct InternalTensor {
-    enum class DataType : unsigned {
+
+struct InternalTensor{
+
+    enum class DataType: unsigned {
         FP16 = 0,
         BF16,
         INT8,
@@ -24,36 +26,22 @@ struct InternalTensor {
     DataType dtype;
     void *data;
 
-    InternalTensor(void *data_, mcflashattnDataType_t dtype_, std::initializer_list<int64_t> list) : data(data_) {
-        switch (dtype_) {
-            case MCFLASHATTN_DATATYPE_FP16:
-                dtype = DataType::FP16;
-                break;
-            case MCFLASHATTN_DATATYPE_BF16:
-                dtype = DataType::BF16;
-                break;
-            case MCFLASHATTN_DATATYPE_INT8:
-                dtype = DataType::INT8;
-                break;
-            case MCFLASHATTN_DATATYPE_INT32:
-                dtype = DataType::INT32;
-                break;
-            case MCFLASHATTN_DATATYPE_INT64:
-                dtype = DataType::INT64;
-                break;
-            case MCFLASHATTN_DATATYPE_FP32:
-                dtype = DataType::FP32;
-                break;
-            case MCFLASHATTN_DATATYPE_FP64:
-                dtype = DataType::FP64;
-                break;
+    InternalTensor(void *data_,mcflashattnDataType_t dtype_,std::initializer_list<int64_t> list):
+        data(data_){
 
-            default:
-                dtype = DataType::NONE;
-                break;
+        switch(dtype_){
+            case MCFLASHATTN_DATATYPE_FP16:  dtype = DataType::FP16; break;
+            case MCFLASHATTN_DATATYPE_BF16:  dtype = DataType::BF16; break;
+            case MCFLASHATTN_DATATYPE_INT8:  dtype = DataType::INT8; break;
+            case MCFLASHATTN_DATATYPE_INT32: dtype = DataType::INT32; break;
+            case MCFLASHATTN_DATATYPE_INT64: dtype = DataType::INT64; break;
+            case MCFLASHATTN_DATATYPE_FP32:  dtype = DataType::FP32; break;
+            case MCFLASHATTN_DATATYPE_FP64:  dtype = DataType::FP64; break;
+
+            default: dtype = DataType::NONE; break;
         }
 
-        for (auto sz : list) {
+        for(auto sz : list){
             sizes.push_back(sz);
         }
 
@@ -61,56 +49,42 @@ struct InternalTensor {
         strides.resize(count);
         strides[count - 1] = 1;
 
-        for (int i = count - 2; i >= 0; --i) {
+        for(int i = count - 2; i >= 0; --i){
             int stride = sizes[i + 1] * strides[i + 1];
             strides[i] = stride;
         }
     }
 
-    void print() {
+    void print(){
+
         std::string dtype_str;
 
-        switch (dtype) {
-            case DataType::FP16:
-                dtype_str = "FP16";
-                break;
-            case DataType::BF16:
-                dtype_str = "BF16";
-                break;
-            case DataType::INT8:
-                dtype_str = "INT8";
-                break;
-            case DataType::INT32:
-                dtype_str = "INT32";
-                break;
-            case DataType::INT64:
-                dtype_str = "INT64";
-                break;
-            case DataType::FP32:
-                dtype_str = "FP32";
-                break;
-            case DataType::FP64:
-                dtype_str = "FP64";
-                break;
+        switch(dtype){
+            case DataType::FP16:  dtype_str = "FP16"; break;
+            case DataType::BF16:  dtype_str = "BF16"; break;
+            case DataType::INT8:  dtype_str = "INT8"; break;
+            case DataType::INT32: dtype_str = "INT32"; break;
+            case DataType::INT64: dtype_str = "INT64"; break;
+            case DataType::FP32:  dtype_str = "FP32"; break;
+            case DataType::FP64:  dtype_str = "FP64"; break;
 
-            default:
-                dtype_str = "NONE";
-                break;
+            default: dtype_str = "NONE"; break;
         }
 
         std::cout << "------------------------------------" << std::endl;
         std::cout << "type:" << dtype_str << std::endl;
 
         std::cout << "size:[";
-        for (int i = 0; i < sizes.size() - 1; ++i) {
+        for(int i = 0; i < sizes.size() - 1; ++ i) {
             std::cout << sizes[i] << ",";
         }
         std::cout << sizes[sizes.size() - 1] << "]" << std::endl;
 
         std::cout << "stride:[";
-        for (int i = 0; i < strides.size() - 1; ++i) {
+        for(int i = 0; i < strides.size() - 1; ++ i) {
             std::cout << strides[i] << ",";
         }
         std::cout << strides[strides.size() - 1] << "]" << std::endl;
+
     }
 };

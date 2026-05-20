@@ -40,6 +40,10 @@
 #  define CUTE_ARCH_CP_ASYNC_SM80_ENABLED
 #endif
 
+#if defined(__MACA_ARCH__) && (__MACA_ARCH__ == 1500 || __MACA_ARCH__ == 1600)
+#  define MACA_ARCH_LDS_TRANS_ENABLED
+#endif
+
 namespace cute
 {
 
@@ -189,5 +193,23 @@ cp_async_wait(Int<N>)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct MACA_LDS_TRANS_4X16
+{
+  using SRegisters = uint64_t[1];
+  using DRegisters = uint64_t[1];
+
+  CUTE_HOST_DEVICE static void
+  copy(uint64_t& smem_src,
+       uint64_t& dst)
+  {
+#if defined(MACA_ARCH_LDS_TRANS_ENABLED)
+    int64_t *smem_src_ptr = reinterpret_cast<int64_t*>(&smem_src);
+    dst = __builtin_mxc_load_shared_trans_4x16_i64(smem_src_ptr);
+#else
+    CUTE_RUNTIME_ASSERT("Trying to use lds_b64_trans_4x16 without MACA_ARCH_LDS_TRANS_ENABLED.");
+#endif
+  }
+};
 
 } // end namespace cute
