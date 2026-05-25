@@ -76,6 +76,9 @@ mha_fwd_kvcache(at::Tensor &q,                 // batch_size x seqlen_q x num_he
 
     // causal=true is the same as causal=false in this case
     if (seqlen_q == 1 && !alibi_slopes_.has_value()) { is_causal = false; }
+#ifdef FLASHATTENTION_DISABLE_CAUSAL
+    TORCH_CHECK(!is_causal, "This flash attention build does not support causal attention.");
+#endif
     if (is_causal) { window_size_right = 0; }
 
     // Faster to transpose q from (b, 1, (nheads_kv ngroups), d) to (b, ngroups, nheads_kv, d) in this case
@@ -167,6 +170,9 @@ mha_fwd_kvcache(at::Tensor &q,                 // batch_size x seqlen_q x num_he
 
     at::Tensor k, v, k_padded, v_padded;
     if (k_.has_value()) {
+#ifdef FLASHATTENTION_DISABLE_APPENDKV
+        TORCH_CHECK(false, "This flash attention build does not support append KV.");
+#endif
         TORCH_CHECK(v_.has_value(), "If key is supplied, value must also be passed in");
         TORCH_CHECK(seqlens_k_.has_value(), "If key is supplied, seqlens_k must also be passed in");
         TORCH_CHECK(seqlen_q <= seqlen_k, "If key is supplied, it must have seqlen <= the seqlen of the KV cache");
@@ -380,6 +386,9 @@ mha_fwd_kvcache_dequant(at::Tensor &q,               // batch_size x seqlen_q x 
 
     // causal=true is the same as causal=false in this case
     if (seqlen_q == 1 && !alibi_slopes_.has_value()) { is_causal = false; }
+#ifdef FLASHATTENTION_DISABLE_CAUSAL
+    TORCH_CHECK(!is_causal, "This flash attention build does not support causal attention.");
+#endif
     if (is_causal) { window_size_right = 0; }
 
     // Faster to transpose q from (b, 1, (nheads_kv ngroups), d) to (b, ngroups, nheads_kv, d) in this case
@@ -487,6 +496,9 @@ mha_fwd_kvcache_dequant(at::Tensor &q,               // batch_size x seqlen_q x 
 
     at::Tensor k, v, k_padded, v_padded;
     if (k_.has_value()) {
+#ifdef FLASHATTENTION_DISABLE_APPENDKV
+        TORCH_CHECK(false, "This flash attention build does not support append KV.");
+#endif
         TORCH_CHECK(v_.has_value(), "If key is supplied, value must also be passed in");
         TORCH_CHECK(seqlens_k_.has_value(), "If key is supplied, seqlens_k must also be passed in");
         TORCH_CHECK(seqlen_q <= seqlen_k, "If key is supplied, it must have seqlen <= the seqlen of the KV cache");

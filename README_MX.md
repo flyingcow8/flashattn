@@ -46,14 +46,85 @@ make cplus_api
 make kernel
 ```
 
-### Fast build (!Currently Unavailable)
-Specify hdim and dtype, and compile only the specified combinations of bool switches based on the configuration in `tools/generator/bool_switch.ini`. Refer to the comments in the file for the configuration of `bool_switch.ini`.
+### Fast build
+
+Use `DEFAULT` to compile only the default dispatch MN tiles. Forward feature variants are disabled by default to reduce build time. Backward kernels are also disabled by default; because dropout forward is only useful together with backward in this build flow, dropout forward kernels are disabled when `BUILD_WITH_BWD_KERNEL=FALSE`.
+
+Running `make python` with no extra options uses these defaults:
+
+| Option | Default used by `make python` | Effect when changed |
+| --- | --- | --- |
+| `FLASHATTN_BUILD_PROJECTS` | unset | If unset, build both C500 and C600. Set `FLASHATTN_BUILD_PROJECTS=C500` or `C600` to build one architecture. |
+| `HDIM_LIST` | `128 256` | Select the head dimensions to compile. |
+| `DTYPE` | `BF16` | Select the dtype to compile. |
+| `FWD_MN_LIST` | `DEFAULT` | Select xcore1000/xcore1500 fwd MN tiles; `DEFAULT` means the dispatch default tiles for each architecture. |
+| `FWD_SPLIT_MN_LIST` | `DEFAULT` | Select xcore1000/xcore1500 fwd_split MN tiles; `DEFAULT` means the dispatch default tiles for each architecture. |
+| `BUILD_WITH_BWD_KERNEL` | `FALSE` | Set to `TRUE` to build backward kernels and enable backward API support. |
+| `FWD_ENABLE_LOCAL` | `FALSE` | Set to `TRUE` to build local/sliding-window forward variants. |
+| `FWD_ENABLE_ALIBI` | `FALSE` | Set to `TRUE` to build ALiBi forward variants. |
+| `FWD_ENABLE_SOFTCAP` | `FALSE` | Set to `TRUE` to build softcap forward variants. |
+| `FWD_ENABLE_APPENDKV` | `FALSE` | Set to `TRUE` to build append-KV variants for `flash_attn_with_kvcache`. |
+| `FWD_ENABLE_CAUSAL` | `FALSE` | Set to `TRUE` to build causal forward variants. |
+
+With these defaults, `make python` builds BF16 forward-only kernels for hdim 128 and 256, uses only the default dispatch MN tiles, disables backward/dropout, and excludes local, ALiBi, softcap, append-KV, and causal forward variants. The default MN tiles are:
+
+| arch | hdim | fwd default MN | fwd_split default MN |
+| --- | --- | --- | --- |
+| xcore1000 | 128 | 64x64 | 64x64 |
+| xcore1000 | 256 | 64x32 | 64x64 |
+| xcore1500 | 128 | 128x64 | 16x32, 128x64 |
+| xcore1500 | 256 | 128x64 | 128x64 |
+
+Enable only the variants needed by your workload:
+```bash
+# build only C500
+FLASHATTN_BUILD_PROJECTS=C500 make python
+
+# build backward and dropout-capable forward kernels
+make python BUILD_WITH_BWD_KERNEL=TRUE
+
+# support causal=True
+make python FWD_ENABLE_CAUSAL=TRUE
+
+# support local attention and ALiBi
+make python FWD_ENABLE_LOCAL=TRUE FWD_ENABLE_ALIBI=TRUE
+
+# support append KV in flash_attn_with_kvcache
+make python FWD_ENABLE_APPENDKV=TRUE
+
+# enable multiple variants together
+make python BUILD_WITH_BWD_KERNEL=TRUE FWD_ENABLE_CAUSAL=TRUE FWD_ENABLE_LOCAL=TRUE
 ```
-# fast build with generate kernel
-make python HDIM=128 DTYPE=FP16 FAST_BUILD=1 GEN_KERNEL=1
-# fast build without generate kernel
-make python HDIM=128 DTYPE=FP16 FAST_BUILD=1 GEN_KERNEL=0
+
+Override `FWD_MN_LIST` and `FWD_SPLIT_MN_LIST` to include more forward tiles:
+```bash
+make python FWD_MN_LIST=64x32,64x64 FWD_SPLIT_MN_LIST=64x64
 ```
+
+The generated xcore1000 sources currently provide these MN choices:
+
+| hdim | fwd MN choices | fwd_split MN choices | dispatch default |
+| --- | --- | --- | --- |
+| 32 | 128x64, 128x128 | 64x64 | fwd: 128x128; fwd_split: 64x64 |
+| 64 | 16x16, 32x32, 64x64, 128x64, 128x128 | 16x16, 64x64 | fwd: 64x64; fwd_split: 64x64 |
+| 96 | 64x64, 128x64 | 64x64 | fwd: 128x64; fwd_split: 64x64 |
+| 128 | 64x32, 64x64, 128x32, 128x64 | 16x16, 32x32, 64x32, 64x64, 128x64 | fwd: 64x64; fwd_split: 64x64 |
+| 160 | 64x32, 64x64, 128x64 | 64x64 | fwd: 64x32; fwd_split: 64x64 |
+| 192 | 64x64; 128x64 for hdimv128 | 64x64 | fwd: 64x64 and 128x64 for hdimv128; fwd_split: 64x64 |
+| 256 | 64x32, 64x64 | 64x32, 64x64 | fwd: 64x32 without dropout, 64x64 for dropout; fwd_split: 64x64 |
+| 512 | 64x32 | 32x32 | fwd: 64x32; fwd_split: 32x32 |
+
+The generated xcore1500 sources currently provide these MN choices:
+
+| hdim | fwd MN choices | fwd_split MN choices | dispatch default |
+| --- | --- | --- | --- |
+| 32 | 128x64, 128x128 | 64x64 | fwd: 128x64 and 128x128; fwd_split: 64x64 |
+| 64 | 128x64 | 128x64 | fwd: 128x64; fwd_split: 128x64 |
+| 96 | 128x64 | 64x64 | fwd: 128x64; fwd_split: 64x64 |
+| 128 | 128x64 | 16x32, 128x64 | fwd: 128x64; fwd_split: 16x32 for short seqlen_q, 128x64 otherwise |
+| 160 | 128x64 | 64x64 | fwd: 128x64; fwd_split: 64x64 |
+| 192 | 128x64 | 128x64 | fwd: 128x64; fwd_split: 128x64 |
+| 256 | 128x64 | 128x64 | fwd: 128x64; fwd_split: 128x64 |
 
 ### ‌Multi-SKU build
 

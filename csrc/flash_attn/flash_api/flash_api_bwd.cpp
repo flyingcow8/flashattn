@@ -6,6 +6,62 @@
 
 using namespace mcFlashAttn;
 
+#ifdef FLASHATTENTION_DISABLE_BACKWARD
+
+std::vector<at::Tensor>
+mha_bwd(const at::Tensor &dout,
+        const at::Tensor &q,
+        const at::Tensor &k,
+        const at::Tensor &v,
+        const at::Tensor &out,
+        const at::Tensor &softmax_lse,
+        c10::optional<at::Tensor> &dq_,
+        c10::optional<at::Tensor> &dk_,
+        c10::optional<at::Tensor> &dv_,
+        c10::optional<at::Tensor> &alibi_slopes_,
+        c10::optional<at::Tensor> &attn_mask_,
+        const float p_dropout,
+        const float softmax_scale,
+        const bool is_causal,
+        int window_size_left,
+        int window_size_right,
+        const float softcap,
+        const bool deterministic,
+        c10::optional<at::Generator> gen_,
+        c10::optional<at::Tensor> &rng_state) {
+    TORCH_CHECK(false, "This flash attention build does not support backward.");
+}
+
+std::vector<at::Tensor>
+mha_varlen_bwd(const at::Tensor &dout,
+               const at::Tensor &q,
+               const at::Tensor &k,
+               const at::Tensor &v,
+               const at::Tensor &out,
+               const at::Tensor &softmax_lse,
+               c10::optional<at::Tensor> &dq_,
+               c10::optional<at::Tensor> &dk_,
+               c10::optional<at::Tensor> &dv_,
+               const at::Tensor &cu_seqlens_q,
+               const at::Tensor &cu_seqlens_k,
+               c10::optional<at::Tensor> &alibi_slopes_,
+               const int max_seqlen_q,
+               const int max_seqlen_k,
+               const float p_dropout,
+               const float softmax_scale,
+               const bool zero_tensors,
+               const bool is_causal,
+               int window_size_left,
+               int window_size_right,
+               const float softcap,
+               const bool deterministic,
+               c10::optional<at::Generator> gen_,
+               c10::optional<at::Tensor> &rng_state) {
+    TORCH_CHECK(false, "This flash attention build does not support backward.");
+}
+
+#else
+
 /*
 *@attn_mask_ support [batch_size or 1, num_heads or 1, seqlen_q or 1, seqlen_k or 1]
 *                                     [num_heads or 1, seqlen_q or 1, seqlen_k or 1]
@@ -495,3 +551,4 @@ mha_varlen_bwd(const at::Tensor &dout,  // total_q x num_heads, x head_size
 
     return { dq, dk, dv, softmax_d };
 }
+#endif

@@ -69,12 +69,18 @@ mha_fwd(at::Tensor &q,         // batch_size x seqlen_q x num_heads x head_size
 
 
     if (softcap > 0.f) { TORCH_CHECK(p_dropout == 0.f, "Softcapping does not support dropout for now"); }
+#ifdef FLASHATTENTION_DISABLE_DROPOUT
+    TORCH_CHECK(p_dropout == 0.f, "This flash attention build does not support dropout.");
+#endif
 
     if (window_size_left >= seqlen_k) { window_size_left = -1; }
     if (window_size_right >= seqlen_k) { window_size_right = -1; }
 
     // causal=true is the same as causal=false in this case
     if (seqlen_q == 1 && !alibi_slopes_.has_value()) { is_causal = false; }
+#ifdef FLASHATTENTION_DISABLE_CAUSAL
+    TORCH_CHECK(!is_causal, "This flash attention build does not support causal attention.");
+#endif
     if (is_causal) { window_size_right = 0; }
 
     // Faster to transpose q from (b, 1, (nheads_kv ngroups), d) to (b, ngroups, nheads_kv, d) in this case
@@ -339,6 +345,9 @@ mha_varlen_fwd(at::Tensor &q,  // total_q x num_heads x head_size, total_q := \s
 
 
     if (softcap > 0.f) { TORCH_CHECK(p_dropout == 0.f, "Softcapping does not support dropout for now"); }
+#ifdef FLASHATTENTION_DISABLE_DROPOUT
+    TORCH_CHECK(p_dropout == 0.f, "This flash attention build does not support dropout.");
+#endif
 
     const int max_num_blocks_per_seq = !paged_KV ? 0 : block_table.size(1);
     const int num_blocks = !paged_KV ? 0 : k.size(0);
@@ -346,6 +355,9 @@ mha_varlen_fwd(at::Tensor &q,  // total_q x num_heads x head_size, total_q := \s
     TORCH_CHECK(!paged_KV || (page_block_size > 0 && (page_block_size & (page_block_size - 1)) == 0), "Paged KV cache block size must be a power of 2!");
 
     if (max_seqlen_q == 1 && !alibi_slopes_.has_value()) { is_causal = false; }  // causal=true is the same as causal=false in this case
+#ifdef FLASHATTENTION_DISABLE_CAUSAL
+    TORCH_CHECK(!is_causal, "This flash attention build does not support causal attention.");
+#endif
     if (is_causal) { window_size_right = 0; }
 
     void *cu_seqlens_q_d = cu_seqlens_q.data_ptr();

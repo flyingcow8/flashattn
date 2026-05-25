@@ -48,6 +48,14 @@ FORCE_BUILD = os.getenv("FLASH_ATTENTION_FORCE_BUILD", "FALSE") == "TRUE"
 SKIP_CUDA_BUILD = os.getenv("FLASH_ATTENTION_SKIP_CUDA_BUILD", "FALSE") == "TRUE"
 # For CI, we want the option to build with C++11 ABI since the nvcr images use C++11 ABI
 FORCE_CXX11_ABI = os.getenv("FLASH_ATTENTION_FORCE_CXX11_ABI", "FALSE") == "TRUE"
+BUILD_WITH_BWD_KERNEL = os.getenv("BUILD_WITH_BWD_KERNEL", "FALSE").upper() not in ("0", "FALSE", "OFF", "NO")
+DISABLE_BACKWARD = not BUILD_WITH_BWD_KERNEL
+DISABLE_DROPOUT = os.getenv("FLASHATTENTION_DISABLE_DROPOUT", "FALSE").upper() in ("1", "TRUE", "ON", "YES") or DISABLE_BACKWARD
+FWD_ENABLE_LOCAL = os.getenv("FWD_ENABLE_LOCAL", "FALSE").upper() in ("1", "TRUE", "ON", "YES")
+FWD_ENABLE_ALIBI = os.getenv("FWD_ENABLE_ALIBI", "FALSE").upper() in ("1", "TRUE", "ON", "YES")
+FWD_ENABLE_SOFTCAP = os.getenv("FWD_ENABLE_SOFTCAP", "FALSE").upper() in ("1", "TRUE", "ON", "YES")
+FWD_ENABLE_APPENDKV = os.getenv("FWD_ENABLE_APPENDKV", "FALSE").upper() in ("1", "TRUE", "ON", "YES")
+FWD_ENABLE_CAUSAL = os.getenv("FWD_ENABLE_CAUSAL", "FALSE").upper() in ("1", "TRUE", "ON", "YES")
 
 
 def get_platform():
@@ -153,6 +161,19 @@ if not SKIP_CUDA_BUILD:
     # https://github.com/pytorch/pytorch/blob/8472c24e3b5b60150096486616d98b7bea01500b/torch/utils/cpp_extension.py#L920
     if FORCE_CXX11_ABI:
         torch._C._GLIBCXX_USE_CXX11_ABI = True
+    backward_flag = ["-DFLASHATTENTION_DISABLE_BACKWARD"] if DISABLE_BACKWARD else []
+    dropout_flag = ["-DFLASHATTENTION_DISABLE_DROPOUT", "-DDROPOUT_FALSE"] if DISABLE_DROPOUT else []
+    feature_flags = []
+    if not FWD_ENABLE_LOCAL:
+        feature_flags += ["-DFLASHATTENTION_DISABLE_LOCAL", "-DLOCAL_FALSE"]
+    if not FWD_ENABLE_ALIBI:
+        feature_flags += ["-DFLASHATTENTION_DISABLE_ALIBI", "-DALIBI_FALSE"]
+    if not FWD_ENABLE_SOFTCAP:
+        feature_flags += ["-DFLASHATTENTION_DISABLE_SOFTCAP", "-DSOFTCAP_FALSE"]
+    if not FWD_ENABLE_APPENDKV:
+        feature_flags += ["-DFLASHATTENTION_DISABLE_APPENDKV", "-DAPPENDKV_FALSE"]
+    if not FWD_ENABLE_CAUSAL:
+        feature_flags += ["-DFLASHATTENTION_DISABLE_CAUSAL", "-DCAUSAL_FALSE"]
     ext_modules.append(
         CUDAExtension(
             name="flash_attn_2_cuda",
@@ -165,7 +186,7 @@ if not SKIP_CUDA_BUILD:
                 "csrc/flash_attn/flash_api/flash_splitkv.cpp",
             ],
             extra_compile_args={
-                "cxx": ["-O3", "-std=c++17", "-w"] + generator_flag,
+                "cxx": ["-O3", "-std=c++17", "-w"] + generator_flag + backward_flag + dropout_flag + feature_flags,
                 "nvcc": append_nvcc_threads(
                     [
                         "-O3",
@@ -203,6 +224,9 @@ if not SKIP_CUDA_BUILD:
                     ]
                     + generator_flag
                     + cc_flag
+                    + backward_flag
+                    + dropout_flag
+                    + feature_flags
                 ),
             },
             extra_link_args=["-T", "a.lds"],

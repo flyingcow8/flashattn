@@ -502,6 +502,9 @@ inline void run_mha_fwd_dispatch<256, Arch::xcore1000>(Flash_fwd_params &params,
     launch_params.rowblock_parallel = 0;
     launch_params.block_type = 5;
     FP16_SWITCH(!params.is_bf16, [&] {
+#ifdef FLASHATTENTION_DISABLE_DROPOUT
+        Xcore1000::run_flash_fwd_template<Headdim, 64, 32, 4, true, true, elem_type>(params, launch_params, stream);
+#else
         bool is_dropout = params.p_dropout < 1.f;
         if (!is_dropout) {
             Xcore1000::run_flash_fwd_template<Headdim, 64, 32, 4, true, true, elem_type>(params, launch_params, stream);
@@ -509,6 +512,7 @@ inline void run_mha_fwd_dispatch<256, Arch::xcore1000>(Flash_fwd_params &params,
         else {
             Xcore1000::run_flash_fwd_template<Headdim, 64, 64, 4, true, true, elem_type>(params, launch_params, stream);
         }
+#endif
     });
 }
 
